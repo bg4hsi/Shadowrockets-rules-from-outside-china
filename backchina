@@ -1,0 +1,63 @@
+# Shadowrocket: 2026-05-12 16:16:24
+[General]
+ipv6 = false
+bypass-system = true
+tun-mtu = 1360
+skip-proxy = 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, fe80::/10, fc00::/7, localhost, *.local, *.lan, *.internal, e.crashlytics.com, captive.apple.com, sequoia.apple.com, seed-sequoia.siri.apple.com, *.ls.apple.com
+bypass-tun = 10.0.0.0/8,100.64.0.0/10,127.0.0.0/8,169.254.0.0/16,172.16.0.0/12,192.0.0.0/24,192.0.2.0/24,192.88.99.0/24,192.168.0.0/16,198.18.0.0/15,198.51.100.0/24,203.0.113.0/24,233.252.0.0/24,224.0.0.0/4,255.255.255.255/32,::1/128,::ffff:0:0/96,::ffff:0:0:0/96,64:ff9b::/96,64:ff9b:1::/48,100::/64,2001::/32,2001:20::/28,2001:db8::/32,2002::/16,3fff::/20,5f00::/16,fc00::/7,fe80::/10,ff00::/8
+dns-server = https://cloudflare-dns.com/dns-query, https://dns.google/dns-query
+
+[Rule]
+
+# 强制放行本地局域网、组播和广播 (拯救本地智能家居和 NAS 发现机制)
+IP-CIDR,192.168.0.0/16,DIRECT
+IP-CIDR,10.0.0.0/8,DIRECT
+IP-CIDR,172.16.0.0/12,DIRECT
+IP-CIDR,224.0.0.0/4,DIRECT
+IP-CIDR,255.255.255.255/32,DIRECT
+
+# 全局拦截所有网页端 QUIC (UDP 443)，强迫所有 App 图片/视频使用 TCP 走极速通道
+AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT
+
+# 拦截微信图片的 UDP，强迫走 TCP (享受 BBRplus 加速，解决发照片卡死)
+AND,((PROTOCOL,UDP),(DOMAIN-SUFFIX,qpic.cn)),REJECT-NO-DROP
+AND,((PROTOCOL,UDP),(DOMAIN-SUFFIX,servicewechat.com)),REJECT-NO-DROP
+
+# 拦截朋友圈和视频号的 UDP，强迫走 TCP 享受 BBRplus 加速
+AND,((PROTOCOL,UDP),(DOMAIN-SUFFIX,tc.qq.com)),REJECT-NO-DROP
+AND,((PROTOCOL,UDP),(DOMAIN-KEYWORD,video.qq.com)),REJECT-NO-DROP
+
+# 放行微信核心信令域名，解决发文字转圈问题 (绕过 Hysteria 节点直接发往国内)
+DOMAIN-SUFFIX,weixin.qq.com,DIRECT
+DOMAIN-SUFFIX,wechat.com,DIRECT
+
+# 拯救同花顺，金融行情与交易接口强行直连回国 (避免被风控拦截和超时死链)
+DOMAIN-SUFFIX,10jqka.com.cn,DIRECT
+DOMAIN-SUFFIX,hexin.cn,DIRECT
+DOMAIN-SUFFIX,ths.com.cn,DIRECT
+DOMAIN-SUFFIX,iwencai.com,DIRECT
+DOMAIN-KEYWORD,10jqka,DIRECT
+DOMAIN-KEYWORD,hexin,DIRECT
+
+# 放行部分智能硬件常用的底层 P2P 穿透域名 (TUTK)
+DOMAIN-SUFFIX,tutk.com,DIRECT
+
+# === 新增：被墙网站（GFW List）强制代理区 ===
+# 包含所有被中国大陆防火墙屏蔽的国际网站（如 Meta系、X、ChatGPT 等）
+
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Proxy/Proxy.list,PROXY
+
+# === Google 全生态强制代理区 ===
+# 尽管 GFW 列表中已包含部分 Google 域名，但独立引入专属规则集能确保 AI 和视频 API 等复杂子域名的高频更新与精准匹配
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Google/Google.list,PROXY
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/YouTube/YouTube.list,PROXY
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Gemini/Gemini.list,PROXY
+
+# === 升级：国内全域名强制代理区 ===
+DOMAIN,bigly.dscloud.me,PROXY
+
+# === 国际直连区 ===
+FINAL,PROXY
+
+[MITM]
+hostname = *.google.cn,*.googlevideo.com
