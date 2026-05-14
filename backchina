@@ -1,47 +1,62 @@
-# Shadowrocket: 2026-05-14 09:08:22
+# Shadowrocket: 2026-05-14 14:29:27
 [General]
 ipv6 = false
 bypass-system = true
-tun-mtu = 1360
+tun-mtu = 1500
 skip-proxy = 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, fe80::/10, fc00::/7, localhost, *.local, *.lan, *.internal, e.crashlytics.com, captive.apple.com, sequoia.apple.com, seed-sequoia.siri.apple.com, *.ls.apple.com
 bypass-tun = 10.0.0.0/8,100.64.0.0/10,127.0.0.0/8,169.254.0.0/16,172.16.0.0/12,192.0.0.0/24,192.0.2.0/24,192.88.99.0/24,192.168.0.0/16,198.18.0.0/15,198.51.100.0/24,203.0.113.0/24,233.252.0.0/24,224.0.0.0/4,255.255.255.255/32,::1/128,::ffff:0:0/96,::ffff:0:0:0/96,64:ff9b::/96,64:ff9b:1::/48,100::/64,2001::/32,2001:20::/28,2001:db8::/32,2002::/16,3fff::/20,5f00::/16,fc00::/7,fe80::/10,ff00::/8
 dns-server = https://cloudflare-dns.com/dns-query, https://dns.google/dns-query
 
 [Rule]
 
-# 强制放行本地局域网 (拯救本地智能家居和 NAS 发现机制)
+# 1. 强制放行本地局域网
 IP-CIDR,192.168.0.0/16,DIRECT
 IP-CIDR,10.0.0.0/8,DIRECT
 IP-CIDR,172.16.0.0/12,DIRECT
 IP-CIDR,224.0.0.0/4,DIRECT
 IP-CIDR,255.255.255.255/32,DIRECT
 
-# === 🌟 核心修复区 1：海外流量/被墙网站绝对优先权 ===
-# 将 GFW 列表提到这里！防止任何海外 App 被下方的拦截规则误伤
+# 释放 WhatsApp，让当地语音通话走物理直连，告别绕路和断线
+DOMAIN-KEYWORD,whatsapp,DIRECT
+DOMAIN-SUFFIX,whatsapp.net,DIRECT
+DOMAIN-SUFFIX,wa.me,DIRECT
+
+# === 🌟 核心修复区：微信生态最高特权直连 (必须放在 UDP 拦截之上！) ===
+# 只要是微信的流量，无论 TCP 还是 UDP，统统走当地物理网络直连，绝不拦截！
+DOMAIN-SUFFIX,weixin.qq.com,DIRECT
+DOMAIN-SUFFIX,wechat.com,DIRECT
+DOMAIN-SUFFIX,qpic.cn,DIRECT
+DOMAIN-SUFFIX,tc.qq.com,DIRECT
+DOMAIN-SUFFIX,servicewechat.com,DIRECT
+DOMAIN-SUFFIX,file.wx.qq.com,DIRECT
+DOMAIN-SUFFIX,support.weixin.qq.com,DIRECT
+DOMAIN-SUFFIX,vweixinf.tc.qq.com,DIRECT
+DOMAIN-KEYWORD,weixinf,DIRECT
+DOMAIN-KEYWORD,szup,DIRECT
+DOMAIN-KEYWORD,shup,DIRECT
+DOMAIN-KEYWORD,gzup,DIRECT
+DOMAIN-KEYWORD,hkup,DIRECT
+DOMAIN-KEYWORD,bjup,DIRECT
+DOMAIN-KEYWORD,cdup,DIRECT
+DOMAIN-KEYWORD,njup,DIRECT
+DOMAIN-KEYWORD,tjup,DIRECT
+DOMAIN-KEYWORD,video.qq.com,DIRECT
+
+# === 🌟 海外流量/被墙网站绝对优先代理 ===
+DOMAIN-KEYWORD,google,PROXY
+DOMAIN-KEYWORD,googleapis,PROXY
+DOMAIN-SUFFIX,gstatic.com,PROXY
+DOMAIN-KEYWORD,gemini,PROXY
+DOMAIN-KEYWORD,generative,PROXY
+DOMAIN-KEYWORD,youtube,PROXY
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Proxy/Proxy.list,PROXY
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Google/Google.list,PROXY
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/YouTube/YouTube.list,PROXY
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Gemini/Gemini.list,PROXY
 
-# (防漏网之鱼) 显式指定 Gemini 最新 API 走代理
-DOMAIN-KEYWORD,gemini,PROXY
-DOMAIN-KEYWORD,generative,PROXY
-
-# === 🌟 核心修复区 2：全局 UDP 拦截大招 ===
-# 全局拦截所有"非谷歌/非被墙"的 QUIC (UDP 443)，逼退回 TCP 享受跨海加速
+# === 🌟 全局 UDP 拦截大招 ===
+# 此时微信和谷歌的 UDP 已经全部从上面放行了，剩下的未知 App 走 UDP 才会被强制阻断转 TCP
 AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT
-
-# === 🌟 核心修复区 3：微信专项拦截 (彻底干掉 NO-DROP) ===
-# 拦截微信图片的 UDP，强迫走 TCP
-AND,((PROTOCOL,UDP),(DOMAIN-SUFFIX,qpic.cn)),REJECT
-AND,((PROTOCOL,UDP),(DOMAIN-SUFFIX,servicewechat.com)),REJECT
-# 拦截朋友圈和视频号的 UDP，强迫走 TCP
-AND,((PROTOCOL,UDP),(DOMAIN-SUFFIX,tc.qq.com)),REJECT
-AND,((PROTOCOL,UDP),(DOMAIN-KEYWORD,video.qq.com)),REJECT
-
-# 放行微信核心信令域名，解决发文字转圈问题
-DOMAIN-SUFFIX,weixin.qq.com,DIRECT
-DOMAIN-SUFFIX,wechat.com,DIRECT
 
 # 拯救同花顺，金融行情与交易接口强行直连回国
 DOMAIN-SUFFIX,10jqka.com.cn,DIRECT
