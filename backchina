@@ -1,76 +1,180 @@
-# Shadowrocket: 2026-05-14 14:29:27
+# Shadowrocket: 2026-05-15 17:46:02
 [General]
 ipv6 = false
 bypass-system = true
 tun-mtu = 1500
 skip-proxy = 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, fe80::/10, fc00::/7, localhost, *.local, *.lan, *.internal, e.crashlytics.com, captive.apple.com, sequoia.apple.com, seed-sequoia.siri.apple.com, *.ls.apple.com
 bypass-tun = 10.0.0.0/8,100.64.0.0/10,127.0.0.0/8,169.254.0.0/16,172.16.0.0/12,192.0.0.0/24,192.0.2.0/24,192.88.99.0/24,192.168.0.0/16,198.18.0.0/15,198.51.100.0/24,203.0.113.0/24,233.252.0.0/24,224.0.0.0/4,255.255.255.255/32,::1/128,::ffff:0:0/96,::ffff:0:0:0/96,64:ff9b::/96,64:ff9b:1::/48,100::/64,2001::/32,2001:20::/28,2001:db8::/32,2002::/16,3fff::/20,5f00::/16,fc00::/7,fe80::/10,ff00::/8
-dns-server = https://cloudflare-dns.com/dns-query, https://dns.google/dns-query
+# 混合 DNS：确保国内域名能查到最准确的中国 IP，再由洛杉矶代理去连接
+dns-server = 223.5.5.5, 119.29.29.29, https://cloudflare-dns.com/dns-query, https://dns.google/dns-query
 
 [Rule]
-
-# 1. 强制放行本地局域网
+# 1. 强制放行本地局域网 (直连)
 IP-CIDR,192.168.0.0/16,DIRECT
 IP-CIDR,10.0.0.0/8,DIRECT
 IP-CIDR,172.16.0.0/12,DIRECT
 IP-CIDR,224.0.0.0/4,DIRECT
 IP-CIDR,255.255.255.255/32,DIRECT
 
-# 释放 WhatsApp，让当地语音通话走物理直连，告别绕路和断线
+# 2. WhatsApp 最高特权 (必须直连，保证语音通话极低延迟)
 DOMAIN-KEYWORD,whatsapp,DIRECT
 DOMAIN-SUFFIX,whatsapp.net,DIRECT
 DOMAIN-SUFFIX,wa.me,DIRECT
 
-# === 🌟 核心修复区：微信生态最高特权直连 (必须放在 UDP 拦截之上！) ===
-# 只要是微信的流量，无论 TCP 还是 UDP，统统走当地物理网络直连，绝不拦截！
-DOMAIN-SUFFIX,weixin.qq.com,DIRECT
-DOMAIN-SUFFIX,wechat.com,DIRECT
-DOMAIN-SUFFIX,qpic.cn,DIRECT
-DOMAIN-SUFFIX,tc.qq.com,DIRECT
-DOMAIN-SUFFIX,servicewechat.com,DIRECT
-DOMAIN-SUFFIX,file.wx.qq.com,DIRECT
-DOMAIN-SUFFIX,support.weixin.qq.com,DIRECT
-DOMAIN-SUFFIX,vweixinf.tc.qq.com,DIRECT
-DOMAIN-KEYWORD,weixinf,DIRECT
-DOMAIN-KEYWORD,szup,DIRECT
-DOMAIN-KEYWORD,shup,DIRECT
-DOMAIN-KEYWORD,gzup,DIRECT
-DOMAIN-KEYWORD,hkup,DIRECT
-DOMAIN-KEYWORD,bjup,DIRECT
-DOMAIN-KEYWORD,cdup,DIRECT
-DOMAIN-KEYWORD,njup,DIRECT
-DOMAIN-KEYWORD,tjup,DIRECT
-DOMAIN-KEYWORD,video.qq.com,DIRECT
+# 3. 绞杀 QUIC (UDP 443)
+AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT
 
-# === 🌟 海外流量/被墙网站绝对优先代理 ===
+# === 以下为你指定的专属代理白名单 (PROXY) ===
+
+# 4. 个人与公司业务强制代理
+DOMAIN-SUFFIX,powerlong.com,PROXY
+DOMAIN,bigly.dscloud.me,PROXY
+
+# 5. Google 全服务与 Gemini 强制代理
 DOMAIN-KEYWORD,google,PROXY
 DOMAIN-KEYWORD,googleapis,PROXY
 DOMAIN-SUFFIX,gstatic.com,PROXY
 DOMAIN-KEYWORD,gemini,PROXY
 DOMAIN-KEYWORD,generative,PROXY
 DOMAIN-KEYWORD,youtube,PROXY
-RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Proxy/Proxy.list,PROXY
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Google/Google.list,PROXY
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/YouTube/YouTube.list,PROXY
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Gemini/Gemini.list,PROXY
 
-# === 🌟 全局 UDP 拦截大招 ===
-# 此时微信和谷歌的 UDP 已经全部从上面放行了，剩下的未知 App 走 UDP 才会被强制阻断转 TCP
-AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT
+# === 🌟 核心修改：国内全家桶全部走代理 ===
 
-# 拯救同花顺，金融行情与交易接口强行直连回国
-DOMAIN-SUFFIX,10jqka.com.cn,DIRECT
-DOMAIN-SUFFIX,hexin.cn,DIRECT
-DOMAIN-SUFFIX,ths.com.cn,DIRECT
-DOMAIN-SUFFIX,iwencai.com,DIRECT
-DOMAIN-KEYWORD,10jqka,DIRECT
-DOMAIN-KEYWORD,hexin,DIRECT
+# === 国内核心 App 强制代理区 (解决海外 CDN 导致 IP 漂移和直连卡顿) ===
 
-# 放行部分智能硬件常用的底层 P2P 穿透域名 (TUTK)
-DOMAIN-SUFFIX,tutk.com,DIRECT
+# 1. 小红书全家桶
+DOMAIN-SUFFIX,xiaohongshu.com,PROXY
+DOMAIN-SUFFIX,xhscdn.com,PROXY
+DOMAIN-SUFFIX,xhslink.com,PROXY
+DOMAIN-KEYWORD,xiaohongshu,PROXY
+DOMAIN-KEYWORD,xhscdn,PROXY
 
-# 强制家里 NAS 域名走代理
-DOMAIN,bigly.dscloud.me,PROXY
+# 2. B站 (Bilibili) - 视频极其依赖海外 CDN，直连会慢且看不了部分番剧
+DOMAIN-SUFFIX,bilibili.com,PROXY
+DOMAIN-SUFFIX,hdslb.com,PROXY
+DOMAIN-SUFFIX,biliapi.net,PROXY
+DOMAIN-KEYWORD,bilibili,PROXY
 
-# === 最后兜底区 ===
-FINAL,PROXY
+# 3. 阿里系 (淘宝/闲鱼/支付宝) - 阿里云全球边缘节点极多，直连容易加载不出图片
+DOMAIN-SUFFIX,taobao.com,PROXY
+DOMAIN-SUFFIX,alicdn.com,PROXY
+DOMAIN-SUFFIX,alipay.com,PROXY
+DOMAIN-KEYWORD,taobao,PROXY
+DOMAIN-KEYWORD,alicdn,PROXY
+
+# 4. 微博 (Weibo) - 图片和视频常被分配到海外节点，导致 IP 变坦桑尼亚
+DOMAIN-SUFFIX,weibo.com,PROXY
+DOMAIN-SUFFIX,weibo.cn,PROXY
+DOMAIN-SUFFIX,sinaimg.cn,PROXY
+DOMAIN-KEYWORD,weibo,PROXY
+
+# 5. 网易云音乐 / 网易系 - 版权检测极严，必须强制锁死美国节点 IP 以解锁歌单
+DOMAIN-SUFFIX,163.com,PROXY
+DOMAIN-SUFFIX,126.net,PROXY
+DOMAIN-KEYWORD,netease,PROXY
+
+# 6. 百度系 / 贴吧 / 网盘
+DOMAIN-SUFFIX,baidu.com,PROXY
+DOMAIN-SUFFIX,bdstatic.com,PROXY
+DOMAIN-KEYWORD,baidu,PROXY
+
+# 7. 知乎 (Zhihu) - 静态资源有海外分发
+DOMAIN-SUFFIX,zhihu.com,PROXY
+DOMAIN-SUFFIX,zhimg.com,PROXY
+DOMAIN-KEYWORD,zhihu,PROXY
+
+# === 国内核心 App 强制代理区 (补充清单) ===
+
+# 8. 京东 (JD) - 静态图片强依赖 CDN，直连容易导致商品图加载全白
+DOMAIN-SUFFIX,jd.com,PROXY
+DOMAIN-SUFFIX,360buyimg.com,PROXY
+DOMAIN-SUFFIX,jdcloud.com,PROXY
+DOMAIN-KEYWORD,jingdong,PROXY
+
+# 9. 拼多多 (Pinduoduo)
+DOMAIN-SUFFIX,pinduoduo.com,PROXY
+DOMAIN-SUFFIX,yangkeduo.com,PROXY
+DOMAIN-SUFFIX,pddpic.com,PROXY
+
+# 10. 长视频阵营 (爱奇艺 / 优酷 / 芒果TV) - 解决海外版权地区限制 (You're in my region) 和卡顿
+DOMAIN-SUFFIX,iqiyi.com,PROXY
+DOMAIN-SUFFIX,qy.net,PROXY
+DOMAIN-SUFFIX,youku.com,PROXY
+DOMAIN-SUFFIX,ykimg.com,PROXY
+DOMAIN-SUFFIX,mgtv.com,PROXY
+
+# 11. 音乐阵营 (QQ音乐 / 酷狗 / 酷我) - 强制锁定国内 IP，解决“由于版权保护，您所在的地区暂时无法使用”
+DOMAIN-SUFFIX,y.qq.com,PROXY
+DOMAIN-SUFFIX,qqmusic.qq.com,PROXY
+DOMAIN-SUFFIX,kugou.com,PROXY
+DOMAIN-SUFFIX,kuwo.cn,PROXY
+DOMAIN-KEYWORD,kuwo,PROXY
+
+# 12. 生活与外卖 (美团 / 大众点评) - 解决回国前查看国内餐厅、酒店时图片加载缓慢
+DOMAIN-SUFFIX,meituan.com,PROXY
+DOMAIN-SUFFIX,meituan.net,PROXY
+DOMAIN-SUFFIX,dianping.com,PROXY
+DOMAIN-SUFFIX,dpfile.com,PROXY
+
+# 13. 出行与酒旅 (携程 / 去哪儿 / 高德地图) - 差旅人士必备，高德地图瓦片图直连极慢
+DOMAIN-SUFFIX,ctrip.com,PROXY
+DOMAIN-SUFFIX,qunar.com,PROXY
+DOMAIN-SUFFIX,amap.com,PROXY
+DOMAIN-SUFFIX,autonavi.com,PROXY
+
+# 14. 常用云盘及工具 (阿里云盘 / 夸克浏览器 / 蓝奏云)
+DOMAIN-SUFFIX,aliyundrive.com,PROXY
+DOMAIN-SUFFIX,quark.cn,PROXY
+DOMAIN-SUFFIX,lanzoui.com,PROXY
+DOMAIN-SUFFIX,lanzouw.com,PROXY
+
+# === 办公与文档 (金山文档/WPS) 强制代理回国，解决云端同步与签名卡死 ===
+DOMAIN-SUFFIX,kdocs.cn,PROXY
+DOMAIN-SUFFIX,wps.cn,PROXY
+DOMAIN-SUFFIX,wpscdn.cn,PROXY
+DOMAIN-KEYWORD,kdocs,PROXY
+DOMAIN-KEYWORD,wps,PROXY
+
+# === 微信全家桶绝对强制代理 (解决传文件慢、看视频卡顿) ===
+# 1. 核心域名与小程序
+DOMAIN-SUFFIX,weixin.com,PROXY
+DOMAIN-SUFFIX,weixin.qq.com,PROXY
+DOMAIN-SUFFIX,wechat.com,PROXY
+DOMAIN-SUFFIX,wechatos.net,PROXY
+DOMAIN-SUFFIX,servicewechat.com,PROXY
+DOMAIN-SUFFIX,wx.qq.com,PROXY
+DOMAIN-SUFFIX,file.wx.qq.com,PROXY
+DOMAIN-SUFFIX,support.weixin.qq.com,PROXY
+
+# 2. 朋友圈图床与头像
+DOMAIN-SUFFIX,qpic.cn,PROXY
+DOMAIN-SUFFIX,qlogo.cn,PROXY
+# 3. 视频号与流媒体
+DOMAIN-SUFFIX,wxv.qq.com,PROXY
+DOMAIN-SUFFIX,tc.qq.com,PROXY
+DOMAIN-KEYWORD,video.qq.com,PROXY
+# 4. 文件上传/下载专用通道 (按地域划分的直连IP库，强行扭转至代理)
+DOMAIN-KEYWORD,weixinf,PROXY
+DOMAIN-KEYWORD,szup,PROXY
+DOMAIN-KEYWORD,shup,PROXY
+DOMAIN-KEYWORD,gzup,PROXY
+DOMAIN-KEYWORD,hkup,PROXY
+DOMAIN-KEYWORD,bjup,PROXY
+DOMAIN-KEYWORD,cdup,PROXY
+DOMAIN-KEYWORD,njup,PROXY
+DOMAIN-KEYWORD,tjup,PROXY
+# 5. 腾讯相关补充
+DOMAIN-SUFFIX,tencent-cloud.net,PROXY
+DOMAIN-SUFFIX,qcloud.com,PROXY
+
+# 7. 涵盖所有国内 App 和网站 (淘宝/小红书/抖音/同花顺等)
+# 只要是中国的网站或中国的 IP 服务器，全部扔进洛杉矶通道！
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/China/China.list,PROXY
+GEOIP,CN,PROXY
+
+# === 🌟 核心逻辑反转兜底 ===
+# 所有没有写在上面的流量（如坦桑尼亚本地网站、非美国的海外 App等），统统直连！
+FINAL,DIRECT
